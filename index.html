@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPTCG SIM DECK PARSER</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-dark">
+<div class="container py-5">
+    <div class="text-center mb-4">
+        <h1 class="display-5 text-light mb-2">OPTCG Deck Parser</h1>
+        <p class="text-muted small">Select or drop a JSON file of the game</p>
+    </div>
+
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6">
+            <input type="file" id="fileInput" accept=".json" class="form-control">
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-light">Player 1 Deck</h6>
+                    <button id="copyBtn1" onclick="toClip(1)" class="btn btn-sm btn-outline-light">Copy</button>
+                </div>
+                <div class="card-body">
+                    <pre id="deck1" class="mb-0 font-monospace small text-light"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-light">Player 2 Deck</h6>
+                    <button id="copyBtn2" onclick="toClip(2)" class="btn btn-sm btn-outline-light">Copy</button>
+                </div>
+                <div class="card-body">
+                    <pre id="deck2" class="mb-0 font-monospace small text-light"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const deck1 = document.getElementById('deck1');
+    const deck2 = document.getElementById('deck2');
+    let gameData = null;
+
+    // File input change handler
+    fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+        await processFile(file);
+    });
+
+    // Drag and drop handlers
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    document.body.addEventListener('drop', async (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                await processFile(file);
+                fileInput.files = files;
+            } else {
+                alert('Please upload a JSON file');
+            }
+        }
+    });
+
+    async function processFile(file) {
+        try {
+            gameData = JSON.parse(await file.text())[0];
+            deck1.textContent = deckToString(parseDeck(gameData["player1"]));
+            deck2.textContent = deckToString(parseDeck(gameData["player2"]));
+        } catch (error) {
+            deck1.textContent = "Error parsing file: " + error.message;
+            deck2.textContent = "";
+        }
+    }
+
+    function parseDeck(p) {
+        let deck = {};
+        ["hand","trash", "deck","board", "life", "stage"].forEach(zone => {
+            p[zone].forEach(c => {
+                deck[c["cardId"]] = (deck[c["cardId"]] || 0) + 1;
+            });
+        });
+        let lead = p["leaderCard"]["cardId"];
+        return [lead, deck];
+    }
+
+    function deckToString(deck) {
+        let str = "1x" + deck[0];
+        Object.entries(deck[1]).forEach(([c, n]) => {
+            str += "\n" + n + "x" + c;
+        });
+        return str;
+    }
+    function toClip(i){
+        if(i===1)
+            navigator.clipboard.writeText(deck1.innerText);
+        if(i===2)
+            navigator.clipboard.writeText(deck2.innerText);
+    }
+</script>
+</body>
+</html>
